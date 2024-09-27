@@ -11,7 +11,9 @@ sample_index(
   years,
   sds_obs = list(0.01),
   sds_out,
-  seas = list(1)
+  seas = list(1),
+  bias = "none",
+  beta = list(1)
 )
 }
 \arguments{
@@ -51,6 +53,21 @@ just pass it as a list with one entry, e.g., \code{seas = list(1)} will sample
 from season one for all fleets and years --- this is the default for
 season. The default for \code{sds_obs} is 0.01 and if \code{sds_out} is missing,
 then \code{sds_obs} will be used for the output as well as the input.}
+
+\item{bias}{A string that indicates what kind of bias to implement. Currently
+the only options are "none" (default) and "hyperstable". The hyperstable option
+allows for users to test cases where CPUE index is not reflecting the declining
+stock abundance. Hyperstability is calculated by
+\eqn{Observed CPUE = B_y^beta * (mean(B_y)/mean(B_y^beta))}, where beta is the
+hyperstability value (between 0 and 1).}
+
+\item{beta}{A list specifying each beta value to use (per fleet and years). Lengths
+of fleets, years, and sds_obs must match this. For example, if you wish to sample
+a single fleet but have a time period of no bias and then a time period of
+hyperstability, the list would be of length 2, e.g. \code{beta = list(1, 0.5)}. If you
+have 2 fleets and one has a period of hyperstability, you would need a list of
+length = 3, e.g. \code{beta = list(1, 0.5, 1)} and other arguments (years, fleets, etc.)
+would need to match accordingly.}
 }
 \value{
 A Stock Synthesis data file list object is returned. The object will be a

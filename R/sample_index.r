@@ -74,6 +74,19 @@
 #'   season. The default for `sds_obs` is 0.01 and if `sds_out` is missing,
 #'   then `sds_obs` will be used for the output as well as the input.
 #'
+#' @param bias A string that indicates what kind of bias to implement. Currently 
+#'   the only options are "none" (default) and "hyperstable". The hyperstable option 
+#'   allows for users to test cases where CPUE index is not reflecting the declining 
+#'   stock abundance. Hyperstability is calculated by 
+#'   \eqn{Observed CPUE = B_y^beta * (mean(B_y)/mean(B_y^beta))}, where beta is the 
+#'   hyperstability value (between 0 and 1). 
+#' @param beta A list specifying each beta value to use (per fleet and years). Lengths 
+#'   of fleets, years, and sds_obs must match this. For example, if you wish to sample 
+#'   a single fleet but have a time period of no bias and then a time period of 
+#'   hyperstability, the list would be of length 2, e.g. `beta = list(1, 0.5)`. If you 
+#'   have 2 fleets and one has a period of hyperstability, you would need a list of 
+#'   length = 3, e.g. `beta = list(1, 0.5, 1)` and other arguments (years, fleets, etc.)
+#'   would need to match accordingly. 
 #' @return
 #' A Stock Synthesis data file list object is returned. The object will be a
 #' modified version of `dat_list`.
@@ -171,7 +184,9 @@ sample_index <- function(dat_list,
                          years,
                          sds_obs = list(0.01),
                          sds_out,
-                         seas = list(1)) {
+                         seas = list(1),
+                         bias = "none",
+                         beta = list(1)) {
   # Set up inputs
   Nfleets <- length(fleets)
   if (missing(sds_out)) {
@@ -238,6 +253,26 @@ sample_index <- function(dat_list,
       i = "Check your input values against {.var dat_list$CPUE}.",
       i = "sample_index() can't sample non-existent years, fleets, seasons."
     ))
+  }
+  if(bias == "hyperstable"){
+    means <- xxx  |> 
+        dplyr::mutate(
+            beta = unlist(standardize_sampling_args(fleets, years, other_input = beta)),
+            hyperobs = obsOLD^beta
+        )  |> 
+        dplyr::group_by(index, beta)  |> 
+        dplyr::mutate(
+            mvb = mean(obsOLD),
+            mvbb = mean(hyperobs)
+        ) 
+    xxx <- xxx  |> 
+        dplyr::mutate(
+            beta = unlist(standardize_sampling_args(fleets, years, other_input = beta)),
+            mvb = unlist(standardize_sampling_args(fleets, years, other_input = as.list(unique(means[["mvb"]])))),
+            mvbb = unlist(standardize_sampling_args(fleets, years, other_input = as.list(unique(means[["mvbb"]])))),
+            obsOLD = (obsOLD^beta) * (mvb / mvbb)
+        )  |> 
+        dplyr::select(-beta, mvb, mvbb)
   }
   dat_list[["CPUE"]] <- xxx |>
     dplyr::arrange(index, year, seas) |>
